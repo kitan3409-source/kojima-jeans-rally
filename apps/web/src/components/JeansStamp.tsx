@@ -29,7 +29,7 @@ export default function JeansStamp({
           </pattern>
         </defs>
 
-        {/* base (unacquired = light wash) */}
+        {/* base */}
         <path d={JEANS_OUTLINE_D} fill="#d6dbe6" stroke="#9ca3af" strokeWidth={1.5} />
 
         {/* slices */}
@@ -71,27 +71,24 @@ export default function JeansStamp({
         {/* outline */}
         <path d={JEANS_OUTLINE_D} fill="none" stroke="#1e3a5f" strokeWidth={1.6} />
 
-        {/* bib stitch */}
-        <line x1={82} y1={28} x2={118} y2={28} stroke="#c9a84c" strokeWidth={0.7} strokeDasharray="4 2" opacity={0.6} />
+        {/* bib horizontal seam */}
+        <line x1={80} y1={30} x2={118} y2={30} stroke="#c9a84c" strokeWidth={0.7} strokeDasharray="4 2" opacity={0.6} />
 
         {/* strap buttons */}
-        <circle cx={74} cy={14} r={3.5} fill="#d4a843" stroke="#92400e" strokeWidth={0.8} />
-        <circle cx={126} cy={14} r={3.5} fill="#d4a843" stroke="#92400e" strokeWidth={0.8} />
+        <circle cx={72} cy={12} r={3.5} fill="#d4a843" stroke="#92400e" strokeWidth={0.8} />
+        <circle cx={128} cy={12} r={3.5} fill="#d4a843" stroke="#92400e" strokeWidth={0.8} />
 
-        {/* strap adjustment buckles */}
-        <rect x={70} y={18} width={8} height={5} rx={1} fill="none" stroke="#c9a84c" strokeWidth={0.6} opacity={0.5} />
-        <rect x={122} y={18} width={8} height={5} rx={1} fill="none" stroke="#c9a84c" strokeWidth={0.6} opacity={0.5} />
+        {/* strap buckles */}
+        <rect x={68} y={17} width={8} height={5} rx={1} fill="none" stroke="#c9a84c" strokeWidth={0.6} opacity={0.5} />
+        <rect x={124} y={17} width={8} height={5} rx={1} fill="none" stroke="#c9a84c" strokeWidth={0.6} opacity={0.5} />
 
         {/* bib pocket */}
         <path d={BIB_POCKET_D} fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.35} />
-        <path d="M 87 38 L 113 38 L 113 50" fill="none" stroke="#c9a84c" strokeWidth={0.5} strokeDasharray="3 2" opacity={0.4} />
+        <path d="M 88 38 L 112 38 L 112 50" fill="none" stroke="#c9a84c" strokeWidth={0.5} strokeDasharray="3 2" opacity={0.4} />
 
         {/* side pockets */}
-        <path d="M 62 50 L 76 50 L 76 66 L 62 62 Z" fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.3} />
-        <path d="M 124 50 L 138 50 L 138 62 L 124 66 Z" fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.3} />
-
-        {/* waist button (on bib bottom area) */}
-        <circle cx={100} cy={32} r={3} fill="#d4a843" stroke="#92400e" strokeWidth={0.8} />
+        <path d="M 60 50 L 74 50 L 74 66 L 60 62 Z" fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.3} />
+        <path d="M 126 50 L 140 50 L 140 62 L 126 66 Z" fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.3} />
 
         {/* progress */}
         <text x={100} y={244} textAnchor="middle" fontSize={12} fontWeight={700} fill="#1e3a5f">

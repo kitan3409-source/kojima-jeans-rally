@@ -7,13 +7,12 @@ export interface JeansSlice {
 }
 
 // Overalls silhouette (viewBox 0 0 200 260)
-// Shoulder straps + bib + jeans body
+// Shoulder straps + bib + jeans body — proper overalls with chest area
 export const JEANS_OUTLINE_D =
-  // Bib top edge, straps, sides, legs
-  "M 70 10 L 78 10 L 82 28 L 118 28 L 122 10 L 130 10 L 136 28 L 142 50 L 138 110 L 130 220 L 108 222 L 102 110 L 98 110 L 92 222 L 70 220 L 62 110 L 58 50 L 64 28 Z";
+  "M 68 8 L 76 8 L 80 14 L 80 30 L 118 30 L 118 14 L 122 8 L 130 8 L 134 14 L 138 30 L 144 50 L 140 110 L 132 220 L 110 222 L 104 110 L 96 110 L 90 222 L 68 220 L 60 110 L 56 50 L 62 30 L 66 14 Z";
 
-// Bib pocket on overalls
-export const BIB_POCKET_D = "M 85 36 L 115 36 L 115 54 L 85 54 Z";
+// Bib pocket
+export const BIB_POCKET_D = "M 86 36 L 114 36 L 114 54 L 86 54 Z";
 
 export const JEANS_COLORS = [
   "#1e3a5f",
@@ -33,7 +32,7 @@ export function getJeansSlices(
   const sorted = [...checkpoints].sort((a, b) => a.order - b.order);
   const n = sorted.length;
   if (n === 0) return [];
-  const top = 10;
+  const top = 8;
   const bottom = 222;
   const h = (bottom - top) / n;
   return sorted.map((cp, i) => ({
