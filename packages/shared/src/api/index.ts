@@ -1,0 +1,64 @@
+const API_BASE = ""; // same origin via Vite proxy
+
+async function request<T>(path: string, opts?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json", ...(opts?.headers ?? {}) },
+    ...opts,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new ApiError(body.error ?? body.message ?? res.statusText, res.status);
+  }
+  return res.json() as Promise<T>;
+}
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+import type { Checkpoint, StampRecord, AcquireStampResponse } from "../types/index.js";
+
+export const api = {
+  getCheckpoints(): Promise<Checkpoint[]> {
+    return request<Checkpoint[]>("/api/checkpoints");
+  },
+  createCheckpoint(data: { name: string; description: string; order: number; qrCodeValue: string; lat?: string; lng?: string }, adminToken: string): Promise<Checkpoint> {
+    return request<Checkpoint>("/api/checkpoints", {
+      method: "POST",
+      headers: { "X-Admin-Token": adminToken },
+      body: JSON.stringify(data),
+    });
+  },
+  updateCheckpoint(id: string, data: Partial<{ name: string; description: string; order: number; qrCodeValue: string }>, adminToken: string): Promise<Checkpoint> {
+    return request<Checkpoint>(`/api/checkpoints/${id}`, {
+      method: "PUT",
+      headers: { "X-Admin-Token": adminToken },
+      body: JSON.stringify(data),
+    });
+  },
+  deleteCheckpoint(id: string, adminToken: string): Promise<void> {
+    return request<void>(`/api/checkpoints/${id}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Token": adminToken },
+    });
+  },
+  getStamps(userId: string): Promise<StampRecord[]> {
+    return request<StampRecord[]>(`/api/stamps/${userId}`);
+  },
+  acquireStamp(userId: string, qrCodeValue: string): Promise<AcquireStampResponse> {
+    return request<AcquireStampResponse>("/api/stamps/acquire", {
+      method: "POST",
+      body: JSON.stringify({ userId, qrCodeValue }),
+    });
+  },
+  ensureUser(userId: string): Promise<{ id: string }> {
+    return request<{ id: string }>(`/api/users/ensure/${userId}`);
+  },
+  getQrImage(checkpointId: string): string {
+    return `/api/qr/${checkpointId}`;
+  },
+};
