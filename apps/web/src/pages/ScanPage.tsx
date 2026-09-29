@@ -1,113 +1,269 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import QRScanner from "../components/QRScanner";
 import JeansStamp from "../components/JeansStamp";
-import { useDeviceId } from "../hooks/useDeviceId";
+import { useRally } from "../hooks/useRally";
 
 export default function ScanPage() {
-  const deviceId = useDeviceId();
+  const { deviceId, checkpoints, setStamps, acquiredIds, total, done } =
+    useRally();
   const navigate = useNavigate();
-  const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [checkpoints, setCheckpoints] = useState<any[]>([]);
-  const [stamps, setStamps] = useState<any[]>([]);
+  const [msg, setMsg] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [animatingId, setAnimatingId] = useState<string | null>(null);
   const [pendingComplete, setPendingComplete] = useState(false);
   const [manualValue, setManualValue] = useState("");
+  const [sending, setSending] = useState(false);
+  const [retryable, setRetryable] = useState(false);
+  const [offline, setOffline] = useState(
+    typeof navigator !== "undefined" && navigator.onLine === false
+  );
+  const sendingRef = useRef(false);
+  const lastValueRef = useRef<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/checkpoints").then((r) => r.json()).then(setCheckpoints).catch(() => {});
-    if (deviceId) fetch(`/api/stamps/${deviceId}`).then((r) => r.json()).then(setStamps).catch(() => {});
-  }, [deviceId]);
-
-  const acquiredIds = new Set(stamps.map((s: any) => s.checkpointId));
+    const goOnline = () => setOffline(false);
+    const goOffline = () => setOffline(true);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   const playSound = () => {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const ctx = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.frequency.value = 880;
-      osc.connect(gain); gain.connect(ctx.destination);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      osc.start(); osc.stop(ctx.currentTime + 0.4);
-    } catch {}
+      osc.type = "sine";
+      osc.frequency.value = 660;
+      osc.frequency.exponentialRampToValueAtTime(990, ctx.currentTime + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.22, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {
+      /* audio unavailable */
+    }
   };
 
   const handleScan = async (value: string) => {
-    if (!deviceId) return;
+    if (!deviceId || sendingRef.current) return;
+    sendingRef.current = true;
+    setSending(true);
+    setRetryable(false);
+    lastValueRef.current = value;
     try {
       const res = await fetch("/api/stamps/acquire", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: deviceId, qrCodeValue: value }),
       });
-      const data = await res.json();
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
       if (!res.ok) {
-        if (res.status === 409) setMsg({ type: "error", text: "このスポットはすでに獲得済みです！" });
-        else if (res.status === 404) setMsg({ type: "error", text: "無効なQRコードです。" });
-        else setMsg({ type: "error", text: data.error ?? "エラーが発生しました" });
+        if (res.status === 409)
+          setMsg({ type: "error", text: "このスポットはすでに獲得しています。" });
+        else if (res.status === 404)
+          setMsg({ type: "error", text: "このQRコードは登録されていません。" });
+        else if (res.status === 400)
+          setMsg({ type: "error", text: "入力内容を確認してください。" });
+        else
+          setMsg({
+            type: "error",
+            text: "獲得できませんでした。もう一度お試しください。",
+          });
         return;
       }
-      setMsg({ type: "success", text: `🎉 「${data.checkpoint.name}」を獲得！` });
-      const newStamp = data.stamp;
-      setStamps((prev) => [...prev, newStamp]);
+      setMsg({
+        type: "success",
+        text: `「${data.checkpoint.name}」のピースが藍に染まりました。`,
+      });
+      setStamps((prev) => [...prev, data.stamp]);
       setAnimatingId(data.checkpoint.id);
       playSound();
-      // check if complete after this
-      const willBeComplete = acquiredIds.size + 1 === checkpoints.length;
-      if (willBeComplete) setPendingComplete(true);
+      if (acquiredIds.size + 1 === total) setPendingComplete(true);
     } catch {
-      setMsg({ type: "error", text: "通信エラーが発生しました" });
+      setRetryable(true);
+      setMsg({
+        type: "error",
+        text:
+          navigator.onLine === false
+            ? "オフラインです。通信できる場所で再試行してください。"
+            : "通信できませんでした。再試行してください。",
+      });
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
     }
+  };
+
+  const retry = () => {
+    if (lastValueRef.current) void handleScan(lastValueRef.current);
+  };
+
+  const submitManual = () => {
+    const value = manualValue.trim();
+    if (!value || sending) return;
+    setManualValue("");
+    void handleScan(value);
   };
 
   const handleAnimComplete = () => {
     setAnimatingId(null);
     if (pendingComplete) {
       setPendingComplete(false);
-      setTimeout(() => navigate("/complete"), 400);
+      setTimeout(() => navigate("/complete"), 500);
     }
   };
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h2 style={{ textAlign: "center" }}>QR読み取り</h2>
+  const remaining = Math.max(total - done, 0);
 
-      {animatingId && (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <JeansStamp checkpoints={checkpoints} acquiredIds={new Set([...acquiredIds, animatingId!])} animatingId={animatingId} onAnimationComplete={handleAnimComplete} />
+  if (animatingId) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          textAlign: "center",
+        }}
+      >
+        <h1 className="display">獲得しました</h1>
+        <p className="lead" role="status" aria-live="polite">
+          {msg?.text}
+        </p>
+        <JeansStamp
+          checkpoints={checkpoints}
+          acquiredIds={new Set([...acquiredIds, animatingId])}
+          animatingId={animatingId}
+          onAnimationComplete={handleAnimComplete}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div>
+        <h1 className="display">QRコードを読み取る</h1>
+        <p className="lead" style={{ marginTop: 6 }}>
+          枠にQRコードを写すと、その場所のピースが藍に染まります。
+        </p>
+        {total > 0 && (
+          <p className="muted" style={{ marginTop: 8 }}>
+            {done} / {total} 獲得
+            {remaining > 0 ? ` ・ 残り ${remaining} スポット` : " ・ コンプリート"}
+          </p>
+        )}
+      </div>
+
+      {offline && (
+        <div className="notice notice--err" role="status" aria-live="polite">
+          オフラインです。通信できる場所でお試しください。
         </div>
       )}
 
       {msg && (
-        <div style={{ padding: 12, borderRadius: 12, textAlign: "center", fontWeight: 600, background: msg.type === "success" ? "#dcfce7" : "#fee2e2", color: msg.type === "success" ? "#166534" : "#991b1b" }}>
+        <div
+          className={`notice ${
+            msg.type === "success" ? "notice--ok" : "notice--err"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
           {msg.text}
+          {retryable && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={retry}
+              disabled={sending}
+              style={{ marginTop: 10 }}
+            >
+              再試行
+            </button>
+          )}
         </div>
       )}
 
-      <QRScanner onScan={handleScan} onError={(m) => setMsg({ type: "error", text: m })} />
+      {sending && (
+        <p className="muted" role="status" aria-live="polite">
+          送信中です…
+        </p>
+      )}
 
-      <div className="card" style={{ display: "flex", gap: 8 }}>
-        <input
-          value={manualValue}
-          onChange={(e) => setManualValue(e.target.value)}
-          placeholder="QRの値を手入力（テスト用）"
-          style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
-        />
-        <button className="btn-secondary" onClick={() => { if (manualValue.trim()) { handleScan(manualValue.trim()); setManualValue(""); } }} style={{ whiteSpace: "nowrap" }}>
-          獲得
-        </button>
-      </div>
+      <QRScanner
+        onScan={handleScan}
+        onError={(m) => setMsg({ type: "error", text: m })}
+        disabled={sending}
+      />
 
-      <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.7 }}>
-        <strong>テスト用QR値:</strong>
-        <ul style={{ paddingLeft: 16, marginTop: 4 }}>
-          {checkpoints.map((cp) => (
-            <li key={cp.id} style={{ wordBreak: "break-all" }}>{cp.qrCodeValue}</li>
-          ))}
-        </ul>
-      </div>
+      <details className="dev panel panel--stitch">
+        <summary>カメラが使えないとき</summary>
+        <p style={{ fontSize: 12.5, margin: "4px 0 10px", lineHeight: 1.7 }}>
+          QRコードの値を入力して獲得できます。
+        </p>
+        <label
+          htmlFor="manual-qr"
+          style={{ display: "block", fontSize: 12.5, marginBottom: 6 }}
+        >
+          QRコードの値
+        </label>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            id="manual-qr"
+            className="field"
+            value={manualValue}
+            onChange={(e) => setManualValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitManual();
+            }}
+            placeholder="QRの値"
+            inputMode="text"
+            enterKeyHint="done"
+            autoComplete="off"
+            disabled={sending}
+            style={{ flex: 1, fontSize: 13 }}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={submitManual}
+            disabled={sending || !manualValue.trim()}
+            style={{
+              width: "auto",
+              padding: "11px 16px",
+              fontSize: 14,
+              opacity: sending || !manualValue.trim() ? 0.6 : 1,
+            }}
+          >
+            獲得
+          </button>
+        </div>
+
+        <details className="dev" style={{ marginTop: 10 }}>
+          <summary>動作確認用のQR値</summary>
+          <ul style={{ paddingLeft: 16, marginTop: 4, lineHeight: 1.9 }}>
+            {checkpoints.map((cp) => (
+              <li key={cp.id} style={{ wordBreak: "break-all" }}>
+                {cp.qrCodeValue}
+              </li>
+            ))}
+          </ul>
+        </details>
+      </details>
     </div>
   );
 }

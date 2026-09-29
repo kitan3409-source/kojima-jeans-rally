@@ -20,7 +20,7 @@ export class ApiError extends Error {
   }
 }
 
-import type { Checkpoint, StampRecord, AcquireStampResponse } from "../types/index.js";
+import type { Checkpoint, StampRecord, AcquireStampResponse, Profile, Stats, LeaderboardEntry } from "../types/index.js";
 
 export const api = {
   getCheckpoints(): Promise<Checkpoint[]> {
@@ -60,5 +60,20 @@ export const api = {
   },
   getQrImage(checkpointId: string): string {
     return `/api/qr/${checkpointId}`;
+  },
+  getStats(adminToken?: string): Promise<Stats> {
+    return request<Stats>("/api/stats", adminToken ? { headers: { "X-Admin-Token": adminToken } } : undefined);
+  },
+  getLeaderboard(limit = 20, adminToken?: string): Promise<LeaderboardEntry[]> {
+    return request<LeaderboardEntry[]>(`/api/stats/leaderboard?limit=${limit}`, adminToken ? { headers: { "X-Admin-Token": adminToken } } : undefined);
+  },
+  getProfile(userId: string): Promise<Profile> {
+    return request<Profile>(`/api/profile/${userId}`);
+  },
+  updateProfile(userId: string, nickname: string): Promise<Profile> {
+    return request<Profile>(`/api/profile/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify({ nickname }),
+    });
   },
 };

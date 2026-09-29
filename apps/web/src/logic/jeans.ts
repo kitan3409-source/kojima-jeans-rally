@@ -6,23 +6,28 @@ export interface JeansSlice {
   isAcquired: boolean;
 }
 
-// Overalls silhouette (viewBox 0 0 200 260)
-// Shoulder straps + bib + jeans body — proper overalls with chest area
+// Five-pocket jeans silhouette (viewBox 0 0 200 280).
+// Waist, hips, thigh, crotch and two legs — unmistakably denim.
 export const JEANS_OUTLINE_D =
-  "M 68 8 L 76 8 L 80 14 L 80 30 L 118 30 L 118 14 L 122 8 L 130 8 L 134 14 L 138 30 L 144 50 L 140 110 L 132 220 L 110 222 L 104 110 L 96 110 L 90 222 L 68 220 L 60 110 L 56 50 L 62 30 L 66 14 Z";
+  "M 38 22 Q 100 14 162 22 L 167 86 Q 161 130 154 160 L 141 276 L 108 276 Q 103 205 100 150 Q 97 205 92 276 L 59 276 L 46 160 Q 39 130 33 86 Z";
 
-// Bib pocket
-export const BIB_POCKET_D = "M 86 36 L 114 36 L 114 54 L 86 54 Z";
+export const WAISTBAND_D = "M 38 22 Q 100 14 162 22 L 164 46 Q 100 52 36 46 Z";
 
+// Left and right front pocket openings.
+export const POCKET_LEFT_D = "M 41 54 Q 37 84 52 100 L 66 88 Q 55 74 56 56 Z";
+export const POCKET_RIGHT_D = "M 159 54 Q 163 84 148 100 L 134 88 Q 145 74 144 56 Z";
+
+// Undiscovered denim sits in the dark; collected slices ignite into indigo.
+export const RAW_DENIM = "#27324d";
 export const JEANS_COLORS = [
-  "#1e3a5f",
-  "#1e40af",
-  "#2563eb",
-  "#3b82f6",
-  "#60a5fa",
-  "#93c5fd",
-  "#1e3a5f",
-  "#1e40af",
+  "#3b62b0",
+  "#3c66b7",
+  "#406bbf",
+  "#446fc7",
+  "#4974cf",
+  "#4f7ad8",
+  "#5580e1",
+  "#5c88ec",
 ];
 
 export function getJeansSlices(
@@ -32,8 +37,8 @@ export function getJeansSlices(
   const sorted = [...checkpoints].sort((a, b) => a.order - b.order);
   const n = sorted.length;
   if (n === 0) return [];
-  const top = 8;
-  const bottom = 222;
+  const top = 46;
+  const bottom = 276;
   const h = (bottom - top) / n;
   return sorted.map((cp, i) => ({
     index: i,

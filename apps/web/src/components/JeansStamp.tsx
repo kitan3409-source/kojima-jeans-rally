@@ -1,7 +1,23 @@
-import { getJeansSlices, getJeansColor, JEANS_OUTLINE_D, BIB_POCKET_D } from "../logic/jeans";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import {
+  getJeansSlices,
+  getJeansColor,
+  JEANS_OUTLINE_D,
+  WAISTBAND_D,
+  POCKET_LEFT_D,
+  POCKET_RIGHT_D,
+  RAW_DENIM,
+} from "../logic/jeans";
 
-const PATCH_EMOJI = ["🧵", "✂️", "👖", "⭐", "🌊", "🏖️", "🗻", "⚓"];
+const VOID = "#05080f";
+const WAIST = "#1c2a4a";
+const DIM = "#56678a";
+const DIM2 = "#7f9bc9";
+const THREAD = "#e08a35";
+const COPPER = "#c08a52";
+const FOG = "#e9eef8";
+const ECRU = "#e6e0cf";
 
 export default function JeansStamp({
   checkpoints,
@@ -15,85 +31,280 @@ export default function JeansStamp({
   onAnimationComplete?: () => void;
 }) {
   const slices = getJeansSlices(checkpoints, acquiredIds);
+  const total = checkpoints.length;
+  const done = checkpoints.filter((c) => acquiredIds.has(c.id)).length;
+  const remaining = Math.max(0, total - done);
+
+  const [reduceMotion, setReduceMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return;
+    }
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduceMotion(query.matches);
+    onChange();
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  const firedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!animatingId) {
+      firedRef.current = null;
+      return;
+    }
+    if (!reduceMotion) return;
+    if (firedRef.current === animatingId) return;
+    firedRef.current = animatingId;
+    onAnimationComplete?.();
+  }, [reduceMotion, animatingId, onAnimationComplete]);
 
   return (
     <div style={{ display: "flex", justifyContent: "center" }}>
-      <svg viewBox="0 0 200 250" width="220" height="275" style={{ overflow: "visible" }}>
+      <svg
+        viewBox="0 0 200 280"
+        width={210}
+        height={294}
+        role="img"
+        aria-label={`ジーンズの染色状況。${total} ピース中 ${done} ピース獲得、残り ${remaining} ピース。`}
+        style={{
+          maxWidth: "100%",
+          height: "auto",
+          overflow: "visible",
+          filter: done
+            ? "drop-shadow(0 26px 60px rgba(70,120,220,0.4))"
+            : "drop-shadow(0 20px 40px rgba(0,0,0,0.7))",
+          transition: "filter 0.6s ease",
+        }}
+      >
         <defs>
           <clipPath id="jeans-clip">
             <path d={JEANS_OUTLINE_D} />
           </clipPath>
-          <pattern id="denim-texture" width="4" height="4" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.4" fill="rgba(255,255,255,0.15)" />
-            <circle cx="3" cy="3" r="0.4" fill="rgba(255,255,255,0.15)" />
+          <pattern id="weave" width="3" height="3" patternUnits="userSpaceOnUse">
+            <path
+              d="M0 0 L3 3"
+              stroke="rgba(255,255,255,0.06)"
+              strokeWidth="0.6"
+            />
+            <path d="M3 0 L0 3" stroke="rgba(0,0,0,0.28)" strokeWidth="0.6" />
           </pattern>
+          <pattern id="slub" width="7" height="7" patternUnits="userSpaceOnUse">
+            <line
+              x1="0"
+              y1="2"
+              x2="5"
+              y2="2"
+              stroke="rgba(255,255,255,0.05)"
+              strokeWidth="0.6"
+            />
+            <line
+              x1="2"
+              y1="6"
+              x2="7"
+              y2="6"
+              stroke="rgba(255,255,255,0.04)"
+              strokeWidth="0.6"
+            />
+          </pattern>
+          {/* dyed sheen across the garment */}
+          <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0.16" />
+            <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="1" stopColor="#000000" stopOpacity="0.28" />
+          </linearGradient>
         </defs>
 
-        {/* base */}
-        <path d={JEANS_OUTLINE_D} fill="#d6dbe6" stroke="#9ca3af" strokeWidth={1.5} />
+        {/* undiscovered body */}
+        <path
+          d={JEANS_OUTLINE_D}
+          fill={RAW_DENIM}
+          stroke={VOID}
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
 
-        {/* slices */}
         <g clipPath="url(#jeans-clip)">
+          <rect x="0" y="0" width="200" height="280" fill="url(#weave)" />
+
           {slices.map((s) => {
             const isAnimating = s.checkpointId === animatingId;
-            const color = getJeansColor(s.index);
+            const animate = isAnimating && !reduceMotion;
             const h = s.y1 - s.y0;
             const cy = (s.y0 + s.y1) / 2;
             return (
               <g key={s.checkpointId}>
-                <motion.rect
-                  x={0} y={s.y0} width={200} height={h + 0.5}
-                  fill={s.isAcquired ? color : "transparent"}
-                  initial={false}
-                  animate={isAnimating ? { filter: ["brightness(1)", "brightness(1.6)", "brightness(1)"] } as any : {}}
-                  transition={isAnimating ? ({ duration: 1.2 } as any) : {}}
-                  onAnimationComplete={isAnimating ? onAnimationComplete : undefined}
+                {s.isAcquired && (
+                  <motion.rect
+                    x={0}
+                    y={s.y0}
+                    width={200}
+                    height={h + 0.6}
+                    fill={getJeansColor(s.index)}
+                    initial={animate ? { opacity: 0, scaleY: 0.2 } : false}
+                    animate={{ opacity: 1, scaleY: 1 }}
+                    transition={
+                      animate
+                        ? { duration: 0.7, ease: [0.22, 1, 0.36, 1] }
+                        : { duration: 0 }
+                    }
+                    style={{
+                      transformBox: "fill-box",
+                      transformOrigin: "50% 100%",
+                    }}
+                    onAnimationComplete={
+                      animate ? onAnimationComplete : undefined
+                    }
+                  />
+                )}
+                {s.isAcquired && (
+                  <rect
+                    x="0"
+                    y={s.y0}
+                    width="200"
+                    height={h}
+                    fill="url(#weave)"
+                    opacity="0.6"
+                  />
+                )}
+
+                <line
+                  x1={30}
+                  y1={s.y1}
+                  x2={170}
+                  y2={s.y1}
+                  stroke={s.isAcquired ? THREAD : "#33425f"}
+                  strokeWidth={0.7}
+                  opacity={s.isAcquired ? 0.7 : 0.6}
+                  strokeDasharray="4 3"
                 />
-                {s.isAcquired && <rect x={0} y={s.y0} width={200} height={h} fill="url(#denim-texture)" opacity={0.5} />}
-                <line x1={55} y1={s.y1} x2={145} y2={s.y1} stroke={s.isAcquired ? "#c9a84c" : "#b0b8c8"} strokeWidth={0.8} opacity={s.isAcquired ? 0.7 : 0.4} strokeDasharray="5 3" />
-                {s.isAcquired && <line x1={100} y1={s.y0} x2={100} y2={s.y1} stroke="#c9a84c" strokeWidth={0.6} opacity={0.4} strokeDasharray="4 3" />}
-                {s.isAcquired ? (
-                  <text x={100} y={cy + 6} textAnchor="middle" fontSize={15} style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.4))" }}>
-                    {PATCH_EMOJI[s.index % PATCH_EMOJI.length]}
-                  </text>
-                ) : (
-                  <text x={100} y={cy + 5} textAnchor="middle" fontSize={12} fill="#8a94a8" fontWeight={700}>{s.index + 1}</text>
-                )}
-                {isAnimating && (
-                  <motion.rect x={0} y={s.y0} width={200} height={h} fill="none" stroke="#60a5fa" strokeWidth={3}
-                    initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }} transition={{ duration: 1.2 }} />
-                )}
+
+                <circle
+                  cx={100}
+                  cy={cy}
+                  r={9}
+                  fill={s.isAcquired ? "rgba(5,8,15,0.35)" : "none"}
+                  stroke={s.isAcquired ? FOG : DIM}
+                  strokeWidth={s.isAcquired ? 1 : 1.1}
+                  strokeDasharray={s.isAcquired ? "0" : "2 2"}
+                  opacity={0.9}
+                />
+                <text
+                  x={100}
+                  y={cy + 4}
+                  textAnchor="middle"
+                  fontFamily='"Oswald", "Zen Kaku Gothic New", sans-serif'
+                  fontWeight={500}
+                  fontSize={12}
+                  fill={s.isAcquired ? FOG : DIM2}
+                >
+                  {s.index + 1}
+                </text>
               </g>
             );
           })}
+
+          <rect x="0" y="0" width="200" height="280" fill="url(#sheen)" />
+          <rect x="0" y="0" width="200" height="280" fill="url(#slub)" />
         </g>
 
-        {/* outline */}
-        <path d={JEANS_OUTLINE_D} fill="none" stroke="#1e3a5f" strokeWidth={1.6} />
+        {/* seams & hardware */}
+        <path
+          d="M 167 86 Q 161 130 154 160 L 141 274"
+          fill="none"
+          stroke={THREAD}
+          strokeWidth={0.7}
+          strokeDasharray="3 3"
+          opacity={0.5}
+        />
+        <path
+          d="M 33 86 Q 39 130 46 160 L 59 274"
+          fill="none"
+          stroke={THREAD}
+          strokeWidth={0.7}
+          strokeDasharray="3 3"
+          opacity={0.5}
+        />
+        <path
+          d="M 100 150 Q 97 205 92 274"
+          fill="none"
+          stroke={THREAD}
+          strokeWidth={0.7}
+          strokeDasharray="3 3"
+          opacity={0.5}
+        />
+        <path
+          d="M 100 150 Q 103 205 108 274"
+          fill="none"
+          stroke={THREAD}
+          strokeWidth={0.7}
+          strokeDasharray="3 3"
+          opacity={0.5}
+        />
 
-        {/* bib horizontal seam */}
-        <line x1={80} y1={30} x2={118} y2={30} stroke="#c9a84c" strokeWidth={0.7} strokeDasharray="4 2" opacity={0.6} />
+        <line x1={61} y1={266} x2={90} y2={266} stroke={THREAD} strokeWidth={0.7} strokeDasharray="3 2" opacity={0.6} />
+        <line x1={110} y1={266} x2={139} y2={266} stroke={THREAD} strokeWidth={0.7} strokeDasharray="3 2" opacity={0.6} />
 
-        {/* strap buttons */}
-        <circle cx={72} cy={12} r={3.5} fill="#d4a843" stroke="#92400e" strokeWidth={0.8} />
-        <circle cx={128} cy={12} r={3.5} fill="#d4a843" stroke="#92400e" strokeWidth={0.8} />
+        <path
+          d="M 100 46 Q 96 72 100 104"
+          fill="none"
+          stroke={THREAD}
+          strokeWidth={0.8}
+          strokeDasharray="3 2"
+          opacity={0.7}
+        />
+        <line x1={98} y1={48} x2={98} y2={104} stroke={THREAD} strokeWidth={0.5} strokeDasharray="3 2" opacity={0.45} />
 
-        {/* strap buckles */}
-        <rect x={68} y={17} width={8} height={5} rx={1} fill="none" stroke="#c9a84c" strokeWidth={0.6} opacity={0.5} />
-        <rect x={124} y={17} width={8} height={5} rx={1} fill="none" stroke="#c9a84c" strokeWidth={0.6} opacity={0.5} />
+        <path d={POCKET_LEFT_D} fill="none" stroke={THREAD} strokeWidth={0.9} strokeDasharray="3 2" opacity={0.75} />
+        <path d={POCKET_RIGHT_D} fill="none" stroke={THREAD} strokeWidth={0.9} strokeDasharray="3 2" opacity={0.75} />
 
-        {/* bib pocket */}
-        <path d={BIB_POCKET_D} fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.35} />
-        <path d="M 88 38 L 112 38 L 112 50" fill="none" stroke="#c9a84c" strokeWidth={0.5} strokeDasharray="3 2" opacity={0.4} />
+        <circle cx={43} cy={62} r={1.9} fill={COPPER} stroke="#4d3418" strokeWidth={0.5} />
+        <circle cx={157} cy={62} r={1.9} fill={COPPER} stroke="#4d3418" strokeWidth={0.5} />
+        <circle cx={100} cy={106} r={2.2} fill={COPPER} stroke="#4d3418" strokeWidth={0.5} />
 
-        {/* side pockets */}
-        <path d="M 60 50 L 74 50 L 74 66 L 60 62 Z" fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.3} />
-        <path d="M 126 50 L 140 50 L 140 62 L 126 66 Z" fill="none" stroke="#1e3a5f" strokeWidth={0.6} opacity={0.3} />
+        {/* waistband */}
+        <path d={WAISTBAND_D} fill={WAIST} stroke={VOID} strokeWidth={1.2} />
+        <path d="M 39 27 Q 100 19 161 27" fill="none" stroke={THREAD} strokeWidth={0.7} strokeDasharray="3 2" opacity={0.7} />
+        <path d="M 37 42 Q 100 48 163 42" fill="none" stroke={THREAD} strokeWidth={0.7} strokeDasharray="3 2" opacity={0.7} />
 
-        {/* progress */}
-        <text x={100} y={244} textAnchor="middle" fontSize={12} fontWeight={700} fill="#1e3a5f">
-          {acquiredIds.size} / {checkpoints.length}
-        </text>
+        {[50, 96.5, 143].map((x) => (
+          <rect key={x} x={x} y={17} width={7} height={30} rx={1} fill={WAIST} stroke={THREAD} strokeWidth={0.5} opacity={0.9} />
+        ))}
+
+        {/* woven brand label with selvedge edge */}
+        <g transform="rotate(-4 150 40)">
+          <rect x={138} y={34} width={24} height={11} fill={ECRU} stroke={VOID} strokeWidth={0.4} />
+          <rect x={160} y={34} width={2} height={11} fill={THREAD} opacity={0.9} />
+          <text
+            x={149}
+            y={42}
+            textAnchor="middle"
+            fontFamily='"Zen Old Mincho", serif'
+            fontWeight={700}
+            fontSize={6.5}
+            fill="#0a1020"
+            letterSpacing="0.5"
+          >
+            児島
+          </text>
+        </g>
+
+        <path
+          d={JEANS_OUTLINE_D}
+          fill="none"
+          stroke={VOID}
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
       </svg>
     </div>
   );

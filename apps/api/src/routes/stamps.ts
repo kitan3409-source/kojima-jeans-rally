@@ -12,8 +12,13 @@ function toCheckpointJson(row: any) {
 }
 
 stampRoutes.post("/acquire", async (c) => {
-  const { userId, qrCodeValue } = await c.req.json();
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body !== "object") return c.json({ error: "Invalid body" }, 400);
+  const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+  const qrCodeValue = typeof body.qrCodeValue === "string" ? body.qrCodeValue.trim() : "";
   if (!userId || !qrCodeValue) return c.json({ error: "userId and qrCodeValue required" }, 400);
+  if (userId.length > 128) return c.json({ error: "userId must be at most 128 characters" }, 400);
+  if (qrCodeValue.length > 256) return c.json({ error: "qrCodeValue must be at most 256 characters" }, 400);
 
   const existingUser = sqlite.prepare(`SELECT * FROM users WHERE id = ?`).get(userId) as any;
   if (!existingUser) {

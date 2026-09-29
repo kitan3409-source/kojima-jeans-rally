@@ -3,6 +3,8 @@ import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { checkpointRoutes } from "./routes/checkpoints.js";
 import { stampRoutes } from "./routes/stamps.js";
+import { statsRoutes } from "./routes/stats.js";
+import { profileRoutes } from "./routes/profiles.js";
 import { sqlite } from "./db/index.js";
 import QRCode from "qrcode";
 import "./db/migrate.js";
@@ -13,6 +15,8 @@ app.use("/*", cors({ origin: "*", allowHeaders: ["Content-Type", "X-Admin-Token"
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.route("/api/checkpoints", checkpointRoutes);
 app.route("/api/stamps", stampRoutes);
+app.route("/api/stats", statsRoutes);
+app.route("/api/profile", profileRoutes);
 
 app.get("/api/users/ensure/:userId", async (c) => {
   const userId = c.req.param("userId");

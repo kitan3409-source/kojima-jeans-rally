@@ -12,8 +12,8 @@ export default defineConfig({
         name: "児島ジーンズスタンプラリー",
         short_name: "児島ジーンズラリー",
         description: "児島地域を巡ってジーンズを完成させよう！",
-        theme_color: "#1e3a5f",
-        background_color: "#eff6ff",
+        theme_color: "#111c33",
+        background_color: "#f7f4ec",
         display: "standalone",
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },

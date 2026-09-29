@@ -1,61 +1,252 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import JeansStamp from "../components/JeansStamp";
-import { useDeviceId } from "../hooks/useDeviceId";
+import { useRally } from "../hooks/useRally";
+import { useProfile } from "../hooks/useProfile";
+import { certificateBlobUrl, type CertificateInput } from "../logic/certificate";
+
+const FILE_NAME = "kojima-jeans-certificate.png";
+const SHARE_TITLE = "児島ジーンズスタンプラリー";
 
 export default function CompletePage() {
-  const deviceId = useDeviceId();
-  const [checkpoints, setCheckpoints] = useState<any[]>([]);
-  const [stamps, setStamps] = useState<any[]>([]);
+  const { checkpoints, acquiredIds, total, done, isComplete } = useRally();
+  const { nickname, ready, error: profileError } = useProfile();
+
+  const [certUrl, setCertUrl] = useState<string | null>(null);
+  const [certBusy, setCertBusy] = useState(false);
+  const [certError, setCertError] = useState<string | null>(null);
+  const [liveMsg, setLiveMsg] = useState<string | null>(null);
+
+  const shareText =
+    "児島ジーンズスタンプラリーをコンプリートしました。 #児島ジーンズラリー";
+
+  const buildInput = useCallback(
+    (): CertificateInput => ({
+      nickname: nickname.trim(),
+      date: new Date(),
+      total,
+      spots: [...checkpoints]
+        .sort((a, b) => a.order - b.order)
+        .map((c) => ({ name: c.name, order: c.order })),
+    }),
+    [nickname, total, checkpoints]
+  );
 
   useEffect(() => {
-    fetch("/api/checkpoints").then((r) => r.json()).then(setCheckpoints).catch(() => {});
-    if (deviceId) fetch(`/api/stamps/${deviceId}`).then((r) => r.json()).then(setStamps).catch(() => {});
-  }, [deviceId]);
+    return () => {
+      if (certUrl) URL.revokeObjectURL(certUrl);
+    };
+  }, [certUrl]);
 
-  const acquiredIds = new Set(stamps.map((s: any) => s.checkpointId));
-  const isComplete = checkpoints.length > 0 && acquiredIds.size === checkpoints.length;
+  const generate = useCallback(async (): Promise<string | null> => {
+    setCertBusy(true);
+    setCertError(null);
+    setLiveMsg(null);
+    try {
+      const url = await certificateBlobUrl(buildInput());
+      if (!url) throw new Error("empty certificate");
+      setCertUrl(url);
+      setLiveMsg("認定証を生成しました。");
+      return url;
+    } catch {
+      setCertError("認定証の生成に失敗しました。");
+      return null;
+    } finally {
+      setCertBusy(false);
+    }
+  }, [buildInput]);
 
-  const shareText = `児島ジーンズスタンプラリーをコンプリートしました！👖🎉 #児島ジーンズラリー #倉敷市児島`;
+  const share = useCallback(async () => {
+    let url = certUrl;
+    if (!url) url = await generate();
+    if (!url) return;
+
+    try {
+      const blob = await (await fetch(url)).blob();
+      const file = new File([blob], FILE_NAME, { type: "image/png" });
+      if (
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] })
+      ) {
+        await navigator.share({
+          files: [file],
+          title: SHARE_TITLE,
+          text: shareText,
+        });
+        setLiveMsg("認定証を共有しました。");
+        return;
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+    }
+
+    try {
+      if (!navigator.clipboard) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(shareText);
+      setLiveMsg("シェア用のテキストをコピーしました。");
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      alert("共有できませんでした。お使いの環境ではコピーできません。");
+    }
+  }, [certUrl, generate, shareText]);
+
+  if (!isComplete) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 18,
+          textAlign: "center",
+        }}
+      >
+        <h1 className="display">まだ染め上がっていません</h1>
+        <p className="lead">
+          {done} / {total} ピース獲得。残りのスポットを巡りましょう。
+        </p>
+        <JeansStamp checkpoints={checkpoints} acquiredIds={acquiredIds} />
+        <Link to="/scan" className="btn-primary">
+          QRコードを読み取る
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 16 }}>
-      {isComplete ? (
-        <>
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", duration: 0.8 }}>
-            <div style={{ fontSize: 48 }}>🎉👖🎉</div>
-            <h2 style={{ fontSize: 22, marginTop: 8 }}>コンプリート！</h2>
-            <p style={{ color: "#6b7280", marginTop: 8 }}>すべてのピースを集めました！<br />児島を巡ってくれてありがとう！</p>
-          </motion.div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        style={{ textAlign: "center" }}
+      >
+        <span className="tag">完成</span>
+        <h1 className="display" style={{ marginTop: 12 }}>
+          一本、染め上がりました。
+        </h1>
+        <p className="lead" style={{ marginTop: 8 }}>
+          児島を歩ききった証です。おつかれさまでした。
+        </p>
+      </motion.div>
 
-          {/* confetti */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} style={{ fontSize: 24 }}>
-            ✨🎊✨🎊✨
-          </motion.div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <JeansStamp checkpoints={checkpoints} acquiredIds={acquiredIds} />
+      </motion.div>
 
-          <JeansStamp checkpoints={checkpoints} acquiredIds={acquiredIds} />
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <button
-              className="btn-primary"
-              onClick={() => {
-                if (navigator.share) navigator.share({ title: "児島ジーンズスタンプラリー", text: shareText }).catch(() => {});
-                else navigator.clipboard.writeText(shareText).then(() => alert("シェア用テキストをコピーしました！"));
-              }}
+      <div className="panel panel--stitch" style={{ textAlign: "center" }}>
+        {nickname.trim() ? (
+          <>
+            <div className="display" style={{ fontSize: 20 }}>
+              {nickname}
+              <span className="muted" style={{ marginLeft: 6 }}>
+                さん
+              </span>
+            </div>
+            <Link
+              to="/profile"
+              className="muted"
+              style={{ display: "inline-block", marginTop: 6 }}
             >
-              📤 シェアする
+              ニックネームを変更
+            </Link>
+          </>
+        ) : (
+          <>
+            <p className="muted">ニックネームが未設定です。</p>
+            <Link
+              to="/profile"
+              className="btn-secondary"
+              style={{ marginTop: 10 }}
+            >
+              ニックネームを設定
+            </Link>
+          </>
+        )}
+        {profileError && (
+          <p className="muted" style={{ marginTop: 8 }}>
+            {profileError}
+          </p>
+        )}
+        {!ready && (
+          <p className="muted" role="status" aria-live="polite">
+            読み込み中...
+          </p>
+        )}
+      </div>
+
+      <div className="panel panel--stitch" style={{ padding: 12 }}>
+        {certUrl ? (
+          <img
+            src={certUrl}
+            alt="完成認定証"
+            style={{
+              width: "100%",
+              height: "auto",
+              borderRadius: "var(--radius)",
+              border: "1px solid var(--line)",
+              display: "block",
+            }}
+          />
+        ) : certBusy ? (
+          <div
+            className="skeleton"
+            aria-hidden="true"
+            style={{ width: "100%", aspectRatio: "4 / 5" }}
+          />
+        ) : (
+          <div className="stack">
+            {certError && (
+              <div className="notice notice--err" role="alert">
+                {certError}
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={generate}
+              disabled={certBusy}
+            >
+              {certError ? "再試行" : "プレビューを表示"}
             </button>
-            <Link to="/stamps" className="btn-secondary" style={{ display: "block" }}>マイスタンプに戻る</Link>
           </div>
-        </>
-      ) : (
-        <>
-          <p style={{ padding: 40, color: "#6b7280" }}>まだコンプリートしていません。<br />{acquiredIds.size} / {checkpoints.length} ピース獲得</p>
-          <JeansStamp checkpoints={checkpoints} acquiredIds={acquiredIds} />
-          <Link to="/scan" className="btn-primary" style={{ display: "block" }}>QRを読み取る</Link>
-        </>
+        )}
+      </div>
+
+      {certBusy && (
+        <p className="muted" role="status" aria-live="polite" style={{ textAlign: "center" }}>
+          認定証を生成中...
+        </p>
       )}
+
+      {liveMsg && (
+        <div className="notice notice--ok" role="status" aria-live="polite">
+          {liveMsg}
+        </div>
+      )}
+
+      <div className="stack">
+        {certUrl && (
+          <a className="btn-primary" href={certUrl} download={FILE_NAME}>
+            画像として保存
+          </a>
+        )}
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={share}
+          disabled={certBusy}
+        >
+          共有する
+        </button>
+        <Link to="/stamps" className="btn-ghost">
+          スタンプ一覧に戻る
+        </Link>
+      </div>
     </div>
   );
 }

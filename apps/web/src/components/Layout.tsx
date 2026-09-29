@@ -1,44 +1,98 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { useState, useRef } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useRef, useState } from "react";
+import { useRally } from "../hooks/useRally";
 
 export default function Layout() {
+  const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith("/admin");
+  const { total, done } = useRally();
   const [tapCount, setTapCount] = useState(0);
   const timerRef = useRef<number | null>(null);
 
-  const handleFooterTap = () => {
+  const handleBrandTap = () => {
     const next = tapCount + 1;
     setTapCount(next);
     if (timerRef.current) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => setTapCount(0), 3000);
     if (next >= 5) {
       setTapCount(0);
-      window.location.hash = "#admin";
-      window.location.pathname !== "/admin" && (window.location.href = "/admin");
+      if (window.location.pathname !== "/admin") window.location.href = "/admin";
     }
   };
 
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const isCurrent = (path: string) =>
+    path === "/" ? pathname === "/" : pathname.startsWith(path);
+
   return (
     <div className="page">
-      <header className="header" style={{ background: "#1e3a5f" }}>
-        <h1>👖 児島ジーンズラリー</h1>
-        <nav>
-          <NavLink to="/" className={({ isActive }) => isActive ? "active" : ""}>トップ</NavLink>
-          <NavLink to="/stamps" className={({ isActive }) => isActive ? "active" : ""}>マイスタンプ</NavLink>
-          <NavLink to="/scan" className={({ isActive }) => isActive ? "active" : ""}>QR読取</NavLink>
-        </nav>
+      <header
+        className="appbar"
+        style={{ paddingTop: "calc(12px + env(safe-area-inset-top))" }}
+      >
+        <span className="brand-label" onClick={handleBrandTap}>
+          児島ジーンズ
+        </span>
+        {isAdmin ? (
+          <span className="progress" aria-label="管理者メニュー">
+            管理
+          </span>
+        ) : (
+          <span
+            className="progress"
+            role="status"
+            aria-label={`スタンプ獲得状況 ${done} 件 / 全 ${total} 件`}
+          >
+            <b aria-hidden="true">{done}</b>
+            <span aria-hidden="true"> / </span>
+            <span aria-hidden="true">{total}</span>
+          </span>
+        )}
+        <span className="meter" style={{ width: `${pct}%` }} aria-hidden="true" />
       </header>
-      <main style={{ flex: 1, padding: 16 }}>
+
+      <main>
         <Outlet />
       </main>
-      <footer
-        onClick={handleFooterTap}
-        style={{ textAlign: "center", padding: "12px 0", fontSize: 12, color: "#9ca3af", userSelect: "none" }}
-      >
-        児島ジーンズスタンプラリー — 地域を巡ってジーンズを完成させよう
-        {tapCount > 0 && tapCount < 5 && (
-          <span style={{ marginLeft: 8, fontSize: 10, color: "#d1d5db" }}>({tapCount}/5)</span>
-        )}
-      </footer>
+
+      {!isAdmin && (
+        <nav className="tabbar" aria-label="メインナビゲーション">
+          <NavLink
+            to="/"
+            end
+            aria-label="トップ"
+            aria-current={isCurrent("/") ? "page" : undefined}
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
+            <span className="glyph" aria-hidden="true">
+              巡
+            </span>
+            トップ
+          </NavLink>
+          <NavLink
+            to="/stamps"
+            aria-label="スタンプ"
+            aria-current={isCurrent("/stamps") ? "page" : undefined}
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
+            <span className="glyph" aria-hidden="true">
+              藍
+            </span>
+            スタンプ
+          </NavLink>
+          <NavLink
+            to="/scan"
+            aria-label="読み取り"
+            aria-current={isCurrent("/scan") ? "page" : undefined}
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
+            <span className="glyph" aria-hidden="true">
+              読
+            </span>
+            読み取り
+          </NavLink>
+        </nav>
+      )}
     </div>
   );
 }

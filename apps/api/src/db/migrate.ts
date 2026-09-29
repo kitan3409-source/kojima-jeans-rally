@@ -24,9 +24,18 @@ CREATE TABLE IF NOT EXISTS stamp_records (
   acquired_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS unique_user_checkpoint ON stamp_records(user_id, checkpoint_id);
+CREATE INDEX IF NOT EXISTS idx_stamp_user ON stamp_records(user_id);
+CREATE INDEX IF NOT EXISTS idx_stamp_checkpoint ON stamp_records(checkpoint_id);
+CREATE INDEX IF NOT EXISTS idx_stamp_acquired ON stamp_records(acquired_at DESC);
 CREATE TABLE IF NOT EXISTS rally_config (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL DEFAULT '児島ピザスタンプラリー',
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS profiles (
+  user_id TEXT PRIMARY KEY REFERENCES users(id),
+  nickname TEXT NOT NULL,
+  created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 `);
