@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 
+const TOKEN_KEY = "admin_token";
+
 type Stats = {
   totalUsers: number;
   totalStamps: number;
@@ -77,8 +79,8 @@ const liveStyle: CSSProperties = {
 };
 
 export default function AdminStatsPage() {
-  const [token, setToken] = useState(localStorage.getItem("admin_token") ?? "");
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem("admin_token"));
+  const [token, setToken] = useState(sessionStorage.getItem(TOKEN_KEY) ?? "");
+  const [authed, setAuthed] = useState(() => !!sessionStorage.getItem(TOKEN_KEY));
   const [loginErr, setLoginErr] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -101,7 +103,12 @@ export default function AdminStatsPage() {
         fetch("/api/stats", { headers }),
         fetch("/api/stats/leaderboard?limit=20", { headers }),
       ]);
+      if (responses.some((r) => r.status === 429)) {
+        setError("試行回数が多すぎます。しばらく待ってからお試しください。");
+        return;
+      }
       if (responses.some((r) => r.status === 401)) {
+        sessionStorage.removeItem(TOKEN_KEY);
         setAuthed(false);
         setLoginErr("認証が切れました。再ログインしてください。");
         return;
@@ -131,7 +138,7 @@ export default function AdminStatsPage() {
       setLoginErr("パスワードを入力してください。");
       return;
     }
-    localStorage.setItem("admin_token", value);
+    sessionStorage.setItem(TOKEN_KEY, value);
     setToken(value);
     setLoginErr(null);
     setStats(null);
@@ -140,7 +147,8 @@ export default function AdminStatsPage() {
   };
 
   const logout = () => {
-    localStorage.removeItem("admin_token");
+    sessionStorage.removeItem(TOKEN_KEY);
+    setToken("");
     setAuthed(false);
     setStats(null);
     setLeaderboard([]);

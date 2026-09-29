@@ -32,6 +32,22 @@ pnpm --filter @kojima/web dev
 
 ブラウザで `http://localhost:5173` を開く。APIは Vite の proxy 経由で `/api/*` → `localhost:3000` に転送される。
 
+## 環境変数（APIサーバー）
+
+| 変数 | 既定値 | 説明 |
+| --- | --- | --- |
+| `ADMIN_TOKEN` | `kojima2026`（開発時のみ） | 管理APIのトークン。`NODE_ENV=production` では16文字以上の独自値が必須（未設定なら起動失敗） |
+| `ALLOWED_ORIGINS` | `http://localhost:5173` | CORSを許可するオリジン。カンマ区切り |
+| `PORT` | `3000` | 待ち受けポート |
+| `DATABASE_URL` | `data/rally.db` | SQLiteファイルのパス |
+
+## セキュリティ
+
+- QR値（`qrCodeValue`）と QR画像 `/api/qr/:id` は管理者のみ取得可能。一般利用者のAPIレスポンスには含まれない（現地に行かずにスタンプを取得できないようにするため）
+- 管理トークンは定数時間比較で検証し、失敗はIP単位で5分あたり10回に制限
+- スタンプ獲得・プロフィール更新もIP単位でレート制限
+- 管理トークンはブラウザの `sessionStorage` に保持（タブを閉じると破棄）
+
 ## QRコードのテスト方法
 
 ### 手入力（最も簡単）
@@ -49,7 +65,7 @@ kojima-station-006
 
 ### カメラで読み取り
 
-1. 管理画面 (`/admin`, パスワード `kojima2026`) で「QR画像を表示」を押す
+1. 管理画面 (`/admin`, パスワードは `ADMIN_TOKEN`) で「QR画像を表示」を押す
 2. 別端末/別タブでQR画像を表示し、`/scan` の「カメラを起動」で読み取る
 3. `https` または `localhost` でのみカメラが動作します（本番はhttps必須）
 
@@ -64,7 +80,7 @@ curl -X POST http://localhost:3000/api/stamps/acquire \
 ## 管理画面
 
 - URL: `/admin`
-- パスワード: `kojima2026`（環境変数 `ADMIN_TOKEN` で変更可）
+- パスワード: 環境変数 `ADMIN_TOKEN`（開発時の既定値は `kojima2026`。本番では必ず変更）
 - チェックポイントの追加・編集・削除、QR画像の表示が可能
 - 件数を変えるとピザの分割数が自動で再計算される
 

@@ -3,7 +3,8 @@ export interface Checkpoint {
   name: string;
   description: string;
   order: number;
-  qrCodeValue: string;
+  /** Only returned to authenticated administrators. */
+  qrCodeValue?: string;
   lat: string | null;
   lng: string | null;
   imageUrl: string | null;

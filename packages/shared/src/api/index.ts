@@ -23,8 +23,8 @@ export class ApiError extends Error {
 import type { Checkpoint, StampRecord, AcquireStampResponse, Profile, Stats, LeaderboardEntry } from "../types/index.js";
 
 export const api = {
-  getCheckpoints(): Promise<Checkpoint[]> {
-    return request<Checkpoint[]>("/api/checkpoints");
+  getCheckpoints(adminToken?: string): Promise<Checkpoint[]> {
+    return request<Checkpoint[]>("/api/checkpoints", adminToken ? { headers: { "X-Admin-Token": adminToken } } : undefined);
   },
   createCheckpoint(data: { name: string; description: string; order: number; qrCodeValue: string; lat?: string; lng?: string }, adminToken: string): Promise<Checkpoint> {
     return request<Checkpoint>("/api/checkpoints", {
@@ -58,8 +58,13 @@ export const api = {
   ensureUser(userId: string): Promise<{ id: string }> {
     return request<{ id: string }>(`/api/users/ensure/${userId}`);
   },
-  getQrImage(checkpointId: string): string {
-    return `/api/qr/${checkpointId}`;
+  async getQrBlob(checkpointId: string, adminToken: string): Promise<Blob> {
+    const res = await fetch(`${API_BASE}/api/qr/${checkpointId}`, { headers: { "X-Admin-Token": adminToken } });
+    if (!res.ok) throw new ApiError(res.statusText, res.status);
+    return res.blob();
+  },
+  verifyAdmin(adminToken: string): Promise<{ ok: true }> {
+    return request<{ ok: true }>("/api/admin/verify", { headers: { "X-Admin-Token": adminToken } });
   },
   getStats(adminToken?: string): Promise<Stats> {
     return request<Stats>("/api/stats", adminToken ? { headers: { "X-Admin-Token": adminToken } } : undefined);
