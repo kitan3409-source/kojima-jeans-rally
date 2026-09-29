@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { sqlite } from "../db/index.js";
-import { requireAdmin } from "./checkpoints.js";
+import { requireAdmin } from "../security.js";
 
 export const statsRoutes = new Hono();
 

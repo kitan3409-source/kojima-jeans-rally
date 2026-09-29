@@ -1,25 +1,19 @@
 import { Hono } from "hono";
 import { sqlite } from "../db/index.js";
 import { randomUUID } from "node:crypto";
-
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "kojima2026";
+import { isAdmin, requireAdmin } from "../security.js";
 
 export const checkpointRoutes = new Hono();
 
-export function requireAdmin(c: any) {
-  const token = c.req.header("X-Admin-Token");
-  if (token !== ADMIN_TOKEN) return c.json({ error: "Unauthorized" }, 401);
-  return null;
-}
-
-function toJson(row: any) {
+/** QR values are the rally's secret: only administrators may read them. */
+function toJson(row: any, includeSecrets: boolean) {
   if (!row) return row;
   return {
     id: row.id,
     name: row.name,
     description: row.description,
     order: row.order,
-    qrCodeValue: row.qr_code_value,
+    ...(includeSecrets ? { qrCodeValue: row.qr_code_value } : {}),
     lat: row.lat,
     lng: row.lng,
     imageUrl: row.image_url,
@@ -28,9 +22,32 @@ function toJson(row: any) {
   };
 }
 
+function validateCoordinate(value: unknown, key: string): string | null | undefined {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" && typeof value !== "number") return undefined;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return undefined;
+  const limit = key === "lat" ? 90 : 180;
+  if (Math.abs(num) > limit) return undefined;
+  return String(value);
+}
+
+function validateImageUrl(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || value.length > 512) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 checkpointRoutes.get("/", async (c) => {
   const rows = sqlite.prepare(`SELECT * FROM checkpoints ORDER BY "order" ASC`).all() as any[];
-  return c.json(rows.map(toJson));
+  const includeSecrets = isAdmin(c);
+  return c.json(rows.map((row) => toJson(row, includeSecrets)));
 });
 
 checkpointRoutes.post("/", async (c) => {
@@ -50,16 +67,22 @@ checkpointRoutes.post("/", async (c) => {
   if (description.length > 400) return c.json({ error: "description must be at most 400 characters" }, 400);
   if (qrCodeValue.length > 256) return c.json({ error: "qrCodeValue must be at most 256 characters" }, 400);
   if (!Number.isInteger(order)) return c.json({ error: "order must be an integer" }, 400);
+  const safeLat = validateCoordinate(lat, "lat");
+  if (safeLat === undefined) return c.json({ error: "lat must be a valid latitude" }, 400);
+  const safeLng = validateCoordinate(lng, "lng");
+  if (safeLng === undefined) return c.json({ error: "lng must be a valid longitude" }, 400);
+  const safeImageUrl = validateImageUrl(imageUrl);
+  if (safeImageUrl === undefined) return c.json({ error: "imageUrl must be an http(s) URL" }, 400);
   const now = new Date().toISOString();
   const id = randomUUID();
   try {
-    sqlite.prepare(`INSERT INTO checkpoints (id, name, description, "order", qr_code_value, lat, lng, image_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, name, description, order, qrCodeValue, lat ?? null, lng ?? null, imageUrl ?? null, now, now);
+    sqlite.prepare(`INSERT INTO checkpoints (id, name, description, "order", qr_code_value, lat, lng, image_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, name, description, order, qrCodeValue, safeLat, safeLng, safeImageUrl, now, now);
   } catch (e: any) {
     if (String(e.message).includes("UNIQUE")) return c.json({ error: "qrCodeValue already exists" }, 409);
     throw e;
   }
   const row = sqlite.prepare(`SELECT * FROM checkpoints WHERE id = ?`).get(id) as any;
-  return c.json(toJson(row), 201);
+  return c.json(toJson(row, true), 201);
 });
 
 checkpointRoutes.put("/:id", async (c) => {
@@ -83,6 +106,16 @@ checkpointRoutes.put("/:id", async (c) => {
     if (k === "description" && value.length > 400) return c.json({ error: "description must be at most 400 characters" }, 400);
     if (k === "qrCodeValue" && value.length > 256) return c.json({ error: "qrCodeValue must be at most 256 characters" }, 400);
     if (k === "order" && !Number.isInteger(value)) return c.json({ error: "order must be an integer" }, 400);
+    if (k === "lat" || k === "lng") {
+      const safe = validateCoordinate(value, k);
+      if (safe === undefined) return c.json({ error: `${k} must be a valid coordinate` }, 400);
+      value = safe;
+    }
+    if (k === "imageUrl") {
+      const safe = validateImageUrl(value);
+      if (safe === undefined) return c.json({ error: "imageUrl must be an http(s) URL" }, 400);
+      value = safe;
+    }
     fields.push(`${col} = ?`);
     values.push(value);
   }
@@ -98,7 +131,7 @@ checkpointRoutes.put("/:id", async (c) => {
   }
   const row = sqlite.prepare(`SELECT * FROM checkpoints WHERE id = ?`).get(id) as any;
   if (!row) return c.json({ error: "Not found" }, 404);
-  return c.json(toJson(row));
+  return c.json(toJson(row, true));
 });
 
 checkpointRoutes.delete("/:id", async (c) => {

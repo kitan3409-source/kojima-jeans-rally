@@ -252,17 +252,6 @@ export default function ScanPage() {
             獲得
           </button>
         </div>
-
-        <details className="dev" style={{ marginTop: 10 }}>
-          <summary>動作確認用のQR値</summary>
-          <ul style={{ paddingLeft: 16, marginTop: 4, lineHeight: 1.9 }}>
-            {checkpoints.map((cp) => (
-              <li key={cp.id} style={{ wordBreak: "break-all" }}>
-                {cp.qrCodeValue}
-              </li>
-            ))}
-          </ul>
-        </details>
       </details>
     </div>
   );

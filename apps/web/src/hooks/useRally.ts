@@ -6,7 +6,7 @@ export type Checkpoint = {
   name: string;
   description: string;
   order: number;
-  qrCodeValue: string;
+  qrCodeValue?: string;
   lat: string | null;
   lng: string | null;
   imageUrl: string | null;

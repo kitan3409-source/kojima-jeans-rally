@@ -6,13 +6,32 @@ type Checkpoint = {
   name: string;
   description: string;
   order: number;
-  qrCodeValue: string;
+  qrCodeValue?: string;
 };
 
+const TOKEN_KEY = "admin_token";
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}
+
 export default function AdminPage() {
-  const [token, setToken] = useState(localStorage.getItem("admin_token") ?? "");
+  const [token, setToken] = useState(sessionStorage.getItem(TOKEN_KEY) ?? "");
   const [authed, setAuthed] = useState(() =>
-    !!localStorage.getItem("admin_token")
+    !!sessionStorage.getItem(TOKEN_KEY)
   );
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [form, setForm] = useState({
@@ -27,38 +46,81 @@ export default function AdminPage() {
     text: string;
   } | null>(null);
   const [qrModal, setQrModal] = useState<Checkpoint | null>(null);
+  const [qrModalSrc, setQrModalSrc] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
   const headers = { "Content-Type": "application/json", "X-Admin-Token": token };
 
   const load = async () => {
-    const r = await fetch("/api/checkpoints");
+    const r = await fetch("/api/checkpoints", { headers: { "X-Admin-Token": token } });
     setCheckpoints(await r.json());
   };
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line
+  }, [authed]);
 
   useEffect(() => {
     if (!authed || !token) return;
-    fetch("/api/checkpoints", { method: "POST", headers }).then((r) => {
-      if (r.status === 401) setAuthed(false);
-    }).catch(() => {});
+    fetch("/api/admin/verify", { headers: { "X-Admin-Token": token } })
+      .then((r) => {
+        if (!r.ok) {
+          sessionStorage.removeItem(TOKEN_KEY);
+          setAuthed(false);
+        }
+      })
+      .catch(() => {});
     // eslint-disable-next-line
   }, []);
 
-  const login = () => {
+  useEffect(() => {
+    if (!qrModal) {
+      setQrModalSrc(null);
+      return;
+    }
+    let url: string | null = null;
+    let cancelled = false;
+    fetch(`/api/qr/${qrModal.id}`, { headers: { "X-Admin-Token": token } })
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+      .then((blob) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setQrModalSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setMsg({ type: "error", text: "QR画像の取得に失敗しました。" });
+      });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [qrModal, token]);
+
+  const login = async () => {
     if (!token.trim()) {
       setMsg({ type: "error", text: "パスワードを入力してください。" });
       return;
     }
-    localStorage.setItem("admin_token", token);
+    const res = await fetch("/api/admin/verify", {
+      headers: { "X-Admin-Token": token },
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      setMsg({
+        type: "error",
+        text:
+          res?.status === 429
+            ? "試行回数が多すぎます。しばらく待ってからお試しください。"
+            : "パスワードが違います。",
+      });
+      return;
+    }
+    sessionStorage.setItem(TOKEN_KEY, token);
     setAuthed(true);
     setMsg(null);
   };
 
   const logout = () => {
-    localStorage.removeItem("admin_token");
+    sessionStorage.removeItem(TOKEN_KEY);
     setAuthed(false);
     setToken("");
   };
@@ -116,7 +178,7 @@ export default function AdminPage() {
       name: cp.name,
       description: cp.description,
       order: cp.order,
-      qrCodeValue: cp.qrCodeValue,
+      qrCodeValue: cp.qrCodeValue ?? "",
     });
     setEditingId(cp.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -134,7 +196,8 @@ export default function AdminPage() {
 
   const downloadQr = async (cp: Checkpoint) => {
     try {
-      const res = await fetch(`/api/qr/${cp.id}`);
+      const res = await fetch(`/api/qr/${cp.id}`, { headers: { "X-Admin-Token": token } });
+      if (!res.ok) throw new Error(String(res.status));
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -147,17 +210,36 @@ export default function AdminPage() {
     }
   };
 
-  const printAllQr = () => {
+  const printAllQr = async () => {
+    let images: string[];
+    try {
+      images = await Promise.all(
+        checkpoints.map(async (cp) => {
+          const res = await fetch(`/api/qr/${cp.id}`, { headers: { "X-Admin-Token": token } });
+          if (!res.ok) throw new Error(String(res.status));
+          const blob = await res.blob();
+          return await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          });
+        })
+      );
+    } catch {
+      setMsg({ type: "error", text: "QR画像の取得に失敗しました。" });
+      return;
+    }
     const w = window.open("", "_blank");
     if (!w) return;
     const rows = checkpoints
       .map(
-        (cp) => `
+        (cp, i) => `
       <div style="page-break-inside:avoid; text-align:center; border:1px dashed #8aa2c4; border-radius:3px; padding:16px; margin:12px;">
-        <div style="font-family:serif; font-weight:700; font-size:16px;">${cp.order}. ${cp.name}</div>
-        <div style="font-size:12px; color:#5c6a80; margin:4px 0;">${cp.description}</div>
-        <img src="/api/qr/${cp.id}" style="width:200px; height:200px; margin:8px auto; display:block;" />
-        <div style="font-size:11px; color:#8a94a8; word-break:break-all;">${cp.qrCodeValue}</div>
+        <div style="font-family:serif; font-weight:700; font-size:16px;">${cp.order}. ${escapeHtml(cp.name)}</div>
+        <div style="font-size:12px; color:#5c6a80; margin:4px 0;">${escapeHtml(cp.description)}</div>
+        <img src="${images[i]}" style="width:200px; height:200px; margin:8px auto; display:block;" />
+        <div style="font-size:11px; color:#8a94a8; word-break:break-all;">${escapeHtml(cp.qrCodeValue ?? "")}</div>
         <div style="font-size:10px; color:#9aa7ba;">このQRを現地に掲示してください</div>
       </div>`
       )
@@ -359,7 +441,7 @@ export default function AdminPage() {
               <span className="display" style={{ fontSize: 14, flex: 1 }}>
                 {cp.order}. {cp.name}
               </span>
-              <span className="tag">{cp.qrCodeValue.slice(0, 18)}</span>
+              <span className="tag">{(cp.qrCodeValue ?? "").slice(0, 18)}</span>
             </div>
             {cp.description && (
               <div style={{ fontSize: 12.5, color: "var(--fog-soft)" }}>
@@ -415,18 +497,20 @@ export default function AdminPage() {
               <div className="muted" style={{ marginTop: 4 }}>
                 {qrModal.description}
               </div>
-              <img
-                src={`/api/qr/${qrModal.id}`}
-                alt="QRコード"
-                style={{
-                  width: 220,
-                  height: 220,
-                  margin: "12px auto",
-                  display: "block",
-                  border: "1px dashed var(--line)",
-                  borderRadius: 3,
-                }}
-              />
+              {qrModalSrc && (
+                <img
+                  src={qrModalSrc}
+                  alt="QRコード"
+                  style={{
+                    width: 220,
+                    height: 220,
+                    margin: "12px auto",
+                    display: "block",
+                    border: "1px dashed var(--line)",
+                    borderRadius: 3,
+                  }}
+                />
+              )}
               <div
                 style={{
                   fontSize: 11,
