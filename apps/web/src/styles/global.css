@@ -476,6 +476,10 @@ h3.display {
   color: var(--fog-dim);
   margin-top: 4px;
   line-height: 1.75;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .stop__date {
   font-size: 11px;
