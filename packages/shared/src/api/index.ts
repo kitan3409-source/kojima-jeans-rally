@@ -20,7 +20,18 @@ export class ApiError extends Error {
   }
 }
 
-import type { Checkpoint, StampRecord, AcquireStampResponse, Profile, Stats, LeaderboardEntry } from "../types/index.js";
+import type {
+  Checkpoint,
+  StampRecord,
+  AcquireStampResponse,
+  Profile,
+  Stats,
+  LeaderboardEntry,
+  SurveyQuestion,
+  SurveyAnswers,
+  SurveyResponse,
+  SurveyResults,
+} from "../types/index.js";
 
 export const api = {
   getCheckpoints(adminToken?: string): Promise<Checkpoint[]> {
@@ -80,5 +91,20 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ nickname }),
     });
+  },
+  getSurveyQuestions(): Promise<SurveyQuestion[]> {
+    return request<SurveyQuestion[]>("/api/survey/questions");
+  },
+  getSurvey(userId: string): Promise<SurveyResponse> {
+    return request<SurveyResponse>(`/api/survey/${userId}`);
+  },
+  submitSurvey(userId: string, answers: SurveyAnswers): Promise<SurveyResponse> {
+    return request<SurveyResponse>(`/api/survey/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify({ answers }),
+    });
+  },
+  getSurveyResults(adminToken: string): Promise<SurveyResults> {
+    return request<SurveyResults>("/api/survey/responses", { headers: { "X-Admin-Token": adminToken } });
   },
 };

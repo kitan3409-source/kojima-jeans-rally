@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { Context } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
-import { ADMIN_TOKEN } from "./config.js";
+import { ADMIN_TOKEN, trustedClientIpHeader } from "./config.js";
 
 export function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a, "utf8");
@@ -14,6 +14,10 @@ export function safeEqual(a: string, b: string): boolean {
 }
 
 export function clientIp(c: Context): string {
+  if (trustedClientIpHeader) {
+    const forwarded = c.req.header(trustedClientIpHeader)?.split(",").at(-1)?.trim();
+    if (forwarded) return forwarded;
+  }
   try {
     return getConnInfo(c).remote.address ?? "unknown";
   } catch {
