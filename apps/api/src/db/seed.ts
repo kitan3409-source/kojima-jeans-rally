@@ -1,5 +1,6 @@
 import { sqlite } from "./index.js";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
+import { isProduction } from "../config.js";
 import "./migrate.js";
 
 const now = new Date().toISOString();
@@ -15,9 +16,10 @@ const checkpoints = [
 
 for (const cp of checkpoints) {
   const id = randomUUID();
+  const qr = isProduction ? `${cp.qr}-${randomBytes(12).toString("hex")}` : cp.qr;
   try {
-    sqlite.prepare(`INSERT INTO checkpoints (id, name, description, "order", qr_code_value, lat, lng, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, cp.name, cp.description, cp.order, cp.qr, cp.lat, cp.lng, now, now);
-    console.log(`Seeded: ${cp.name} (${cp.qr})`);
+    sqlite.prepare(`INSERT INTO checkpoints (id, name, description, "order", qr_code_value, lat, lng, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, cp.name, cp.description, cp.order, qr, cp.lat, cp.lng, now, now);
+    console.log(`Seeded: ${cp.name}`);
   } catch (e: any) {
     if (String(e.message).includes("UNIQUE")) console.log(`Skip (exists): ${cp.name}`);
     else throw e;

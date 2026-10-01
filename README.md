@@ -40,6 +40,10 @@ pnpm --filter @kojima/web dev
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | CORSを許可するオリジン。カンマ区切り |
 | `PORT` | `3000` | 待ち受けポート |
 | `DATABASE_URL` | `data/rally.db` | SQLiteファイルのパス |
+| `WEB_DIST_DIR` | なし | 指定するとビルド済みWeb（`apps/web/dist`）を同一オリジンで配信（SPAフォールバック付き） |
+| `TRUSTED_CLIENT_IP_HEADER` | なし | リバースプロキシ配下でクライアントIPを取るヘッダー名（例: `x-forwarded-for`）。レート制限に使用 |
+
+`NODE_ENV=production` で `db:seed` を実行すると、QR値は推測不能なランダム値になります（公開リポジトリのシード値は使われません）。
 
 ## セキュリティ
 
