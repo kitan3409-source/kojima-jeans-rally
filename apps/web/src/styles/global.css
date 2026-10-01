@@ -743,7 +743,7 @@ h3.display {
   background: var(--panel-2);
 }
 .badge-tile--locked {
-  opacity: 0.5;
+  opacity: 0.8;
 }
 .badge-tile__mark {
   font-family: var(--font-display);
