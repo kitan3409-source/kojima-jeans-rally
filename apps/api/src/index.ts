@@ -10,6 +10,7 @@ import { statsRoutes } from "./routes/stats.js";
 import { profileRoutes } from "./routes/profiles.js";
 import { sqlite } from "./db/index.js";
 import QRCode from "qrcode";
+import path from "node:path";
 import { allowedOrigins, webDistDir } from "./config.js";
 import { requireAdmin } from "./security.js";
 import "./db/migrate.js";
@@ -76,7 +77,7 @@ if (webDistDir) {
   const root = webDistDir;
   app.use("/*", serveStatic({ root }));
   app.get("*", async (c, next) => {
-    if (c.req.path.startsWith("/api/")) return next();
+    if (c.req.path.startsWith("/api/") || path.extname(c.req.path)) return next();
     return serveStatic({ root, path: "index.html" })(c, next);
   });
 }
