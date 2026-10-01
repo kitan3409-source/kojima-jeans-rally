@@ -8,6 +8,7 @@ import { checkpointRoutes } from "./routes/checkpoints.js";
 import { stampRoutes } from "./routes/stamps.js";
 import { statsRoutes } from "./routes/stats.js";
 import { profileRoutes } from "./routes/profiles.js";
+import { surveyRoutes } from "./routes/survey.js";
 import { sqlite } from "./db/index.js";
 import QRCode from "qrcode";
 import path from "node:path";
@@ -41,6 +42,7 @@ app.route("/api/checkpoints", checkpointRoutes);
 app.route("/api/stamps", stampRoutes);
 app.route("/api/stats", statsRoutes);
 app.route("/api/profile", profileRoutes);
+app.route("/api/survey", surveyRoutes);
 
 app.get("/api/admin/verify", (c) => {
   const err = requireAdmin(c);

@@ -78,3 +78,35 @@ export interface LeaderboardEntry {
   durationMs: number;
   lastAcquiredAt: string;
 }
+
+export type SurveyQuestion =
+  | { id: string; type: "scale"; label: string; required: boolean; min: number; max: number; minLabel: string; maxLabel: string }
+  | { id: string; type: "single" | "multi"; label: string; required: boolean; options: string[] }
+  | { id: string; type: "spot"; label: string; required: boolean }
+  | { id: string; type: "text"; label: string; required: boolean; maxLength: number };
+
+export type SurveyAnswer = number | string | string[];
+
+export type SurveyAnswers = Record<string, SurveyAnswer>;
+
+export interface SurveyResponse {
+  userId: string;
+  answers: SurveyAnswers | null;
+  updatedAt?: string;
+}
+
+export interface SurveyAdminResponse {
+  userId: string;
+  nickname: string | null;
+  stamps: number;
+  answers: SurveyAnswers;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SurveyResults {
+  questions: SurveyQuestion[];
+  spots: { id: string; name: string; order: number }[];
+  totalCheckpoints: number;
+  responses: SurveyAdminResponse[];
+}

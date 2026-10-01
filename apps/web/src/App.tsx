@@ -8,6 +8,8 @@ import AdminPage from "./pages/AdminPage";
 import AdminStatsPage from "./pages/AdminStatsPage";
 import SpotDetailPage from "./pages/SpotDetailPage";
 import ProfilePage from "./pages/ProfilePage";
+import SurveyPage from "./pages/SurveyPage";
+import AdminSurveyPage from "./pages/AdminSurveyPage";
 
 export default function App() {
   return (
@@ -20,8 +22,10 @@ export default function App() {
           <Route path="/complete" element={<CompletePage />} />
           <Route path="/spots/:id" element={<SpotDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/survey" element={<SurveyPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/stats" element={<AdminStatsPage />} />
+          <Route path="/admin/survey" element={<AdminSurveyPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

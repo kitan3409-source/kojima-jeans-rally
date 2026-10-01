@@ -791,3 +791,77 @@ details.dev[open] summary::before {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------- survey */
+.survey-q {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.survey-q__label {
+  float: left;
+  width: 100%;
+  margin-bottom: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--fog);
+}
+.survey-q__no {
+  color: var(--thread);
+  margin-right: 8px;
+}
+.survey-q__req {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  font-size: 11px;
+  border: 1px solid var(--selvedge);
+  color: var(--danger-fg);
+  border-radius: 2px;
+  vertical-align: 2px;
+}
+.survey-options {
+  clear: both;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.survey-chip {
+  min-height: 44px;
+  font-size: 13.5px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.survey-scale {
+  clear: both;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.survey-scale__btn {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--tint);
+  color: var(--fog);
+  font-family: var(--font-num);
+  font-size: 18px;
+}
+.survey-scale__btn.is-on {
+  background: var(--indigo);
+  border-color: var(--thread);
+  color: var(--on-accent);
+}
+.survey-scale__legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.survey-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-decoration: none;
+}

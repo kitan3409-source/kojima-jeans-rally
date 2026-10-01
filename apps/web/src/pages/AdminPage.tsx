@@ -336,6 +336,18 @@ export default function AdminPage() {
         >
           統計を見る
         </Link>
+        <Link
+          to="/admin/survey"
+          style={{
+            ...smBtn(),
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 44,
+            textDecoration: "none",
+          }}
+        >
+          アンケート結果
+        </Link>
       </div>
 
       {msg && (
