@@ -336,6 +336,18 @@ export default function AdminPage() {
         >
           統計を見る
         </Link>
+        <Link
+          to="/admin/survey"
+          style={{
+            ...smBtn(),
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 44,
+            textDecoration: "none",
+          }}
+        >
+          アンケート結果
+        </Link>
       </div>
 
       {msg && (
@@ -554,7 +566,7 @@ function smBtn(danger = false): React.CSSProperties {
     borderRadius: 3,
     border: `1px solid ${danger ? "rgba(200,69,47,0.5)" : "var(--line)"}`,
     background: danger ? "rgba(200,69,47,0.12)" : "var(--panel-2)",
-    color: danger ? "#e28570" : "var(--fog-soft)",
+    color: danger ? "var(--danger-fg)" : "var(--fog-soft)",
     width: "auto",
   };
 }

@@ -17,17 +17,17 @@ export const WAISTBAND_D = "M 38 22 Q 100 14 162 22 L 164 46 Q 100 52 36 46 Z";
 export const POCKET_LEFT_D = "M 41 54 Q 37 84 52 100 L 66 88 Q 55 74 56 56 Z";
 export const POCKET_RIGHT_D = "M 159 54 Q 163 84 148 100 L 134 88 Q 145 74 144 56 Z";
 
-// Undiscovered denim sits in the dark; collected slices ignite into indigo.
-export const RAW_DENIM = "#27324d";
+// Undiscovered cloth is plain white; collected slices dip into deep indigo.
+export const RAW_DENIM = "#f4f6fb";
 export const JEANS_COLORS = [
-  "#3b62b0",
-  "#3c66b7",
-  "#406bbf",
-  "#446fc7",
-  "#4974cf",
-  "#4f7ad8",
-  "#5580e1",
-  "#5c88ec",
+  "#1e3a5f",
+  "#1e40af",
+  "#2563eb",
+  "#3b82f6",
+  "#60a5fa",
+  "#93c5fd",
+  "#1e3a5f",
+  "#1e40af",
 ];
 
 export function getJeansSlices(

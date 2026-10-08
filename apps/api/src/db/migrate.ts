@@ -32,9 +32,23 @@ CREATE TABLE IF NOT EXISTS rally_config (
   title TEXT NOT NULL DEFAULT '児島ピザスタンプラリー',
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS survey_responses (
+  user_id TEXT PRIMARY KEY REFERENCES users(id),
+  answers TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS profiles (
   user_id TEXT PRIMARY KEY REFERENCES users(id),
   nickname TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS accounts (
+  login_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL UNIQUE REFERENCES users(id),
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

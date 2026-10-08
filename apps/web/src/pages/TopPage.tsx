@@ -31,6 +31,9 @@ export default function TopPage() {
         <Link to="/scan" className="btn-primary" style={{ marginTop: 4 }}>
           {started ? "次のピースを読み取る" : "最初のQRコードを読み取る"}
         </Link>
+        <Link to="/login" className="btn-ghost" style={{ fontSize: 13, padding: "8px 14px" }}>
+          登録済みの方：別端末からログイン
+        </Link>
       </section>
 
       <NearbySpots

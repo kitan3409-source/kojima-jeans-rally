@@ -250,7 +250,7 @@ export default function SpotMap({
                 fontSize={11}
                 fontWeight={600}
                 style={{
-                  fill: acquired ? "var(--fog)" : "var(--fog-dim)",
+                  fill: acquired ? "var(--on-accent)" : "var(--fog-dim)",
                   fontFamily: "var(--font-num)",
                 }}
               >
