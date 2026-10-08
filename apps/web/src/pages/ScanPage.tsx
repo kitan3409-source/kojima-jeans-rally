@@ -1,8 +1,94 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import QRScanner from "../components/QRScanner";
 import JeansStamp from "../components/JeansStamp";
 import { useRally } from "../hooks/useRally";
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
+function AcquisitionView({
+  checkpoints,
+  acquiredIds,
+  checkpointId,
+  message,
+  onDone,
+}: {
+  checkpoints: { id: string; order: number; name: string }[];
+  acquiredIds: Set<string>;
+  checkpointId: string;
+  message: string;
+  onDone: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const found = checkpoints.some((c) => c.id === checkpointId);
+  const [phase, setPhase] = useState<"piece" | "whole">("piece");
+  const doneRef = useRef(false);
+  const finish = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onDone();
+  };
+
+  useEffect(() => {
+    if (reduceMotion || !found) setPhase("whole");
+  }, [reduceMotion, found]);
+
+  useEffect(() => {
+    if (phase !== "whole") return;
+    const t = window.setTimeout(finish, reduceMotion ? 900 : 1600);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, reduceMotion]);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        textAlign: "center",
+      }}
+    >
+      <h1 className="display">獲得しました</h1>
+      {phase === "piece" ? (
+        <JeansStamp
+          checkpoints={checkpoints}
+          acquiredIds={acquiredIds}
+          soloId={checkpointId}
+          animatingId={checkpointId}
+          onAnimationComplete={() => setPhase("whole")}
+        />
+      ) : (
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+        >
+          <JeansStamp checkpoints={checkpoints} acquiredIds={acquiredIds} />
+        </motion.div>
+      )}
+      <p className="lead" role="status" aria-live="polite">
+        {message}
+      </p>
+    </div>
+  );
+}
 
 export default function ScanPage() {
   const { deviceId, checkpoints, setStamps, acquiredIds, total, done } =
@@ -132,25 +218,13 @@ export default function ScanPage() {
 
   if (animatingId) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          textAlign: "center",
-        }}
-      >
-        <h1 className="display">獲得しました</h1>
-        <p className="lead" role="status" aria-live="polite">
-          {msg?.text}
-        </p>
-        <JeansStamp
-          checkpoints={checkpoints}
-          acquiredIds={new Set([...acquiredIds, animatingId])}
-          animatingId={animatingId}
-          onAnimationComplete={handleAnimComplete}
-        />
-      </div>
+      <AcquisitionView
+        checkpoints={checkpoints}
+        acquiredIds={new Set([...acquiredIds, animatingId])}
+        checkpointId={animatingId}
+        message={msg?.text ?? ""}
+        onDone={handleAnimComplete}
+      />
     );
   }
 
