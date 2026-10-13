@@ -8,6 +8,26 @@ export const stampRoutes = new Hono();
 const acquireLimiter = createRateLimiter(30, 60 * 1000);
 const USER_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
 
+// How close the device must report being to the checkpoint, in meters.
+const GEO_RADIUS_M = Number(process.env.GEO_RADIUS_M) > 0 ? Number(process.env.GEO_RADIUS_M) : 500;
+// GPS accuracy is credited toward the radius, capped so huge indoor fixes
+// don't make the check meaningless.
+const GEO_ACCURACY_CAP_M = Number(process.env.GEO_ACCURACY_CAP_M) > 0 ? Number(process.env.GEO_ACCURACY_CAP_M) : 500;
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
+}
+
+function finiteNumber(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 function toStampJson(row: any) {
   return { id: row.id, userId: row.user_id, checkpointId: row.checkpoint_id, acquiredAt: row.acquired_at };
 }
@@ -36,6 +56,24 @@ stampRoutes.post("/acquire", async (c) => {
 
   const dup = sqlite.prepare(`SELECT * FROM stamp_records WHERE user_id = ? AND checkpoint_id = ?`).get(userId, cp.id) as any;
   if (dup) return c.json({ error: "Already acquired", stamp: toStampJson(dup) }, 409);
+
+  // Anti-forgery: the device must report a location near the checkpoint.
+  const lat = finiteNumber(body.lat);
+  const lng = finiteNumber(body.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return c.json({ error: "location_required" }, 400);
+  }
+  const accuracy = Math.min(Math.max(finiteNumber(body.accuracy) || 0, 0), GEO_ACCURACY_CAP_M);
+  const cpLat = finiteNumber(cp.lat);
+  const cpLng = finiteNumber(cp.lng);
+  if (Number.isFinite(cpLat) && Number.isFinite(cpLng)) {
+    const distance = haversineMeters(lat, lng, cpLat, cpLng);
+    if (distance > GEO_RADIUS_M + accuracy) {
+      return c.json({ error: "too_far", distance: Math.round(distance), allowed: GEO_RADIUS_M }, 403);
+    }
+  } else {
+    console.warn(`checkpoint ${cp.id} has no coordinates; skipping location check`);
+  }
 
   const now = new Date().toISOString();
   const id = randomUUID();

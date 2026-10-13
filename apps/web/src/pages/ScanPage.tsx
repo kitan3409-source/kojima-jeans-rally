@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import QRScanner from "../components/QRScanner";
 import JeansStamp from "../components/JeansStamp";
 import { useRally } from "../hooks/useRally";
+import { getCurrentFix } from "../logic/geo";
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(
@@ -102,6 +103,7 @@ export default function ScanPage() {
   const [pendingComplete, setPendingComplete] = useState(false);
   const [manualValue, setManualValue] = useState("");
   const [sending, setSending] = useState(false);
+  const [statusText, setStatusText] = useState<string | null>(null);
   const [retryable, setRetryable] = useState(false);
   const [offline, setOffline] = useState(
     typeof navigator !== "undefined" && navigator.onLine === false
@@ -147,10 +149,41 @@ export default function ScanPage() {
     setRetryable(false);
     lastValueRef.current = value;
     try {
+      setStatusText("位置情報を確認しています…");
+      let fix: { lat: number; lng: number; accuracy: number };
+      try {
+        fix = await getCurrentFix();
+      } catch (geoErr: any) {
+        const code = geoErr?.code;
+        setRetryable(true);
+        if (code === 1)
+          setMsg({
+            type: "error",
+            text: "スタンプを獲得するには位置情報の許可が必要です。ブラウザ（端末）の設定で位置情報を許可してから、QRを読み直してください。",
+          });
+        else if (code === 3)
+          setMsg({
+            type: "error",
+            text: "位置情報の取得がタイムアウトしました。電波の良い場所でQRを読み直してください。",
+          });
+        else
+          setMsg({
+            type: "error",
+            text: "現在地を取得できませんでした。位置情報を有効にして、もう一度お試しください。",
+          });
+        return;
+      }
+      setStatusText("送信中です…");
       const res = await fetch("/api/stamps/acquire", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: deviceId, qrCodeValue: value }),
+        body: JSON.stringify({
+          userId: deviceId,
+          qrCodeValue: value,
+          lat: fix.lat,
+          lng: fix.lng,
+          accuracy: fix.accuracy,
+        }),
       });
       let data: any = null;
       try {
@@ -163,8 +196,29 @@ export default function ScanPage() {
           setMsg({ type: "error", text: "このスポットはすでに獲得しています。" });
         else if (res.status === 404)
           setMsg({ type: "error", text: "このQRコードは登録されていません。" });
-        else if (res.status === 400)
-          setMsg({ type: "error", text: "入力内容を確認してください。" });
+        else if (res.status === 403) {
+          const d = data?.distance;
+          const dist =
+            typeof d === "number" && d >= 0
+              ? d >= 1000
+                ? `${(d / 1000).toFixed(1)}km`
+                : `${d}m`
+              : null;
+          setMsg({
+            type: "error",
+            text: dist
+              ? `スポットから離れているため記録できません（約${dist}）。現地のQRコードを読み取ってください。`
+              : "スポットから離れているため記録できません。現地のQRコードを読み取ってください。",
+          });
+        } else if (res.status === 400)
+          setMsg(
+            data?.error === "location_required"
+              ? {
+                  type: "error",
+                  text: "位置情報を取得できませんでした。位置情報を許可してから、もう一度お試しください。",
+                }
+              : { type: "error", text: "入力内容を確認してください。" }
+          );
         else
           setMsg({
             type: "error",
@@ -192,6 +246,7 @@ export default function ScanPage() {
     } finally {
       sendingRef.current = false;
       setSending(false);
+      setStatusText(null);
     }
   };
 
@@ -235,6 +290,9 @@ export default function ScanPage() {
         <p className="lead" style={{ marginTop: 6 }}>
           枠にQRコードを写すと、その場所のピースが藍に染まります。
         </p>
+        <p className="muted" style={{ marginTop: 4, fontSize: 12.5 }}>
+          スタンプの記録には現在地の確認が必要です。位置情報の利用を許可してください。
+        </p>
         {total > 0 && (
           <p className="muted" style={{ marginTop: 8 }}>
             {done} / {total} 獲得
@@ -272,9 +330,9 @@ export default function ScanPage() {
         </div>
       )}
 
-      {sending && (
+      {statusText && (
         <p className="muted" role="status" aria-live="polite">
-          送信中です…
+          {statusText}
         </p>
       )}
 

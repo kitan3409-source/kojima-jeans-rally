@@ -45,6 +45,27 @@ export function distanceMeters(a: LatLng, b: LatLng): number {
   return 2 * R * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }
 
+export type GeoFix = { lat: number; lng: number; accuracy: number };
+
+export function getCurrentFix(): Promise<GeoFix> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("unavailable"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy ?? 0,
+        }),
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+  });
+}
+
 export function formatDistance(m: number): string {
   if (!Number.isFinite(m)) return "—";
   const meters = Math.max(0, m);
