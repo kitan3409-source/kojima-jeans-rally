@@ -1,11 +1,13 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useRef, useState } from "react";
 import { useRally } from "../hooks/useRally";
+import { useTheme } from "../hooks/useTheme";
 
 export default function Layout() {
   const { pathname } = useLocation();
   const isAdmin = pathname.startsWith("/admin");
   const { total, done } = useRally();
+  const { theme, toggle } = useTheme();
   const [tapCount, setTapCount] = useState(0);
   const timerRef = useRef<number | null>(null);
 
@@ -48,6 +50,15 @@ export default function Layout() {
             <span aria-hidden="true">{total}</span>
           </span>
         )}
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggle}
+          aria-label={theme === "dark" ? "ライトモードに切り替え" : "ダークモードに切り替え"}
+          title={theme === "dark" ? "ライトモード" : "ダークモード"}
+        >
+          <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+        </button>
         <span className="meter" style={{ width: `${pct}%` }} aria-hidden="true" />
       </header>
 

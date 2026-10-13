@@ -14,3 +14,8 @@ export function getDeviceId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(DEVICE_ID_KEY);
 }
+
+export function setDeviceId(id: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DEVICE_ID_KEY, id);
+}

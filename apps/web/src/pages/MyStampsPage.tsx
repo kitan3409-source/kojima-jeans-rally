@@ -109,6 +109,11 @@ export default function MyStampsPage() {
         </Link>
       )}
 
+      <Link to="/survey" className="panel panel--stitch survey-cta">
+        <span className="display" style={{ fontSize: 15 }}>アンケートにご協力ください</span>
+        <span className="muted">1分ほどで回答できます →</span>
+      </Link>
+
       <BadgeShelf checkpoints={checkpoints} stamps={stamps} />
 
       <NearbySpots

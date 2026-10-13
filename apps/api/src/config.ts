@@ -19,3 +19,7 @@ export const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
+
+export const trustedClientIpHeader = process.env.TRUSTED_CLIENT_IP_HEADER?.trim().toLowerCase() || null;
+
+export const webDistDir = process.env.WEB_DIST_DIR?.trim() || null;

@@ -13,7 +13,7 @@ import {
 const VOID = "#05080f";
 const WAIST = "#1c2a4a";
 const DIM = "#56678a";
-const DIM2 = "#7f9bc9";
+const DIM2 = "#5c6f9c";
 const THREAD = "#e08a35";
 const COPPER = "#c08a52";
 const FOG = "#e9eef8";
@@ -24,16 +24,19 @@ export default function JeansStamp({
   acquiredIds,
   animatingId,
   onAnimationComplete,
+  soloId,
 }: {
   checkpoints: { id: string; order: number; name: string }[];
   acquiredIds: Set<string>;
   animatingId?: string | null;
   onAnimationComplete?: () => void;
+  soloId?: string | null;
 }) {
   const slices = getJeansSlices(checkpoints, acquiredIds);
   const total = checkpoints.length;
   const done = checkpoints.filter((c) => acquiredIds.has(c.id)).length;
   const remaining = Math.max(0, total - done);
+  const solo = Boolean(soloId);
 
   const [reduceMotion, setReduceMotion] = useState(
     () =>
@@ -131,12 +134,14 @@ export default function JeansStamp({
           stroke={VOID}
           strokeWidth={2}
           strokeLinejoin="round"
+          opacity={solo ? 0.22 : 1}
         />
 
         <g clipPath="url(#jeans-clip)">
-          <rect x="0" y="0" width="200" height="280" fill="url(#weave)" />
+          <rect x="0" y="0" width="200" height="280" fill="url(#weave)" opacity={solo ? 0.22 : 1} />
 
           {slices.map((s) => {
+            if (solo && s.checkpointId !== soloId) return null;
             const isAnimating = s.checkpointId === animatingId;
             const animate = isAnimating && !reduceMotion;
             const h = s.y1 - s.y0;
@@ -213,11 +218,12 @@ export default function JeansStamp({
             );
           })}
 
-          <rect x="0" y="0" width="200" height="280" fill="url(#sheen)" />
-          <rect x="0" y="0" width="200" height="280" fill="url(#slub)" />
+          <rect x="0" y="0" width="200" height="280" fill="url(#sheen)" opacity={solo ? 0.3 : 1} />
+          <rect x="0" y="0" width="200" height="280" fill="url(#slub)" opacity={solo ? 0.3 : 1} />
         </g>
 
         {/* seams & hardware */}
+        <g opacity={solo ? 0.15 : 1}>
         <path
           d="M 167 86 Q 161 130 154 160 L 141 274"
           fill="none"
@@ -297,6 +303,7 @@ export default function JeansStamp({
             児島
           </text>
         </g>
+        </g>
 
         <path
           d={JEANS_OUTLINE_D}
@@ -304,6 +311,7 @@ export default function JeansStamp({
           stroke={VOID}
           strokeWidth={2}
           strokeLinejoin="round"
+          opacity={solo ? 0.3 : 1}
         />
       </svg>
     </div>

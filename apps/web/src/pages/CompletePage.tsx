@@ -243,6 +243,9 @@ export default function CompletePage() {
         >
           共有する
         </button>
+        <Link to="/survey" className="btn-secondary">
+          アンケートに答える
+        </Link>
         <Link to="/stamps" className="btn-ghost">
           スタンプ一覧に戻る
         </Link>

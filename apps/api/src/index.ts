@@ -3,13 +3,17 @@ import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { secureHeaders } from "hono/secure-headers";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { checkpointRoutes } from "./routes/checkpoints.js";
 import { stampRoutes } from "./routes/stamps.js";
 import { statsRoutes } from "./routes/stats.js";
 import { profileRoutes } from "./routes/profiles.js";
+import { surveyRoutes } from "./routes/survey.js";
+import { authRoutes } from "./routes/auth.js";
 import { sqlite } from "./db/index.js";
 import QRCode from "qrcode";
-import { allowedOrigins } from "./config.js";
+import path from "node:path";
+import { allowedOrigins, webDistDir } from "./config.js";
 import { requireAdmin } from "./security.js";
 import "./db/migrate.js";
 
@@ -39,6 +43,8 @@ app.route("/api/checkpoints", checkpointRoutes);
 app.route("/api/stamps", stampRoutes);
 app.route("/api/stats", statsRoutes);
 app.route("/api/profile", profileRoutes);
+app.route("/api/survey", surveyRoutes);
+app.route("/api/auth", authRoutes);
 
 app.get("/api/admin/verify", (c) => {
   const err = requireAdmin(c);
@@ -70,6 +76,15 @@ app.get("/api/qr/:checkpointId", async (c) => {
     },
   });
 });
+
+if (webDistDir) {
+  const root = webDistDir;
+  app.use("/*", serveStatic({ root }));
+  app.get("*", async (c, next) => {
+    if (c.req.path.startsWith("/api/") || path.extname(c.req.path)) return next();
+    return serveStatic({ root, path: "index.html" })(c, next);
+  });
+}
 
 const port = Number(process.env.PORT ?? 3000);
 console.log(`API listening on http://localhost:${port}`);

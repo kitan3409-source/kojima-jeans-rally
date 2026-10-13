@@ -82,7 +82,7 @@ export default class ErrorBoundary extends Component<
               border: "none",
               borderRadius: "var(--radius)",
               background: "linear-gradient(180deg, #4a74c6, var(--indigo))",
-              color: "#f4f7ff",
+              color: "var(--on-accent)",
               fontSize: 15,
               fontWeight: 700,
               letterSpacing: "0.08em",
